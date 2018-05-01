@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using MySql.Data.MySqlClient;
 
 namespace SqlIntro
 {
-    public class ProductRepository
+    public class ProductRepository : IProductRepository
     {
         private readonly string _connectionString;
 
@@ -28,7 +29,7 @@ namespace SqlIntro
             {
                 conn.Open();
                 var cmd = conn.CreateCommand();
-                cmd.CommandText = "SELECT * FROM product"; //TODO:  Write a SELECT statement that gets all products
+                cmd.CommandText = "SELECT ProductId as Id, Name from product;"; 
                 var dr = cmd.ExecuteReader();
                 while (dr.Read())
                 {
@@ -47,7 +48,8 @@ namespace SqlIntro
             {
                 conn.Open();
                 var cmd = conn.CreateCommand();
-                cmd.CommandText = "DELETE FROM product WHERE ProductID = " + id; //Write a delete statement that deletes by id
+                cmd.CommandText = "DELETE FROM product WHERE ProductID = @id"; //Write a delete statement that deletes by id
+                cmd.Parameters.AddWithValue("@id", id);
                 cmd.ExecuteNonQuery(); 
             }
         }
@@ -83,6 +85,39 @@ namespace SqlIntro
                 cmd.Parameters.AddWithValue("@name", prod.Name);
                 cmd.ExecuteNonQuery();
             }
+        }
+
+        public IEnumerable<Product> GetProductsWithReviews()
+        {
+            using (var conn = new MySqlConnection(_connectionString))
+            {
+                conn.Open();
+                var cmd = conn.CreateCommand();
+                cmd.CommandText = "Select p.Name, p.ID, pr.Comments FROM product as p" + 
+                                  "INNER JOIN productreview as pr ON product.ProductId=productreview.ProductId";
+                var dr = cmd.ExecuteReader();
+                while (dr.Read())
+                {
+                    yield return new Product { Name = dr["Name"].ToString(), Comments = dr["Comments"].ToString() };
+                }
+            }
+        }
+        
+        public IEnumerable<Product> GetProductsAndReviews()
+        {
+            using (var conn = new MySqlConnection(_connectionString))
+            {
+                conn.Open();
+                var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT * FROM product as p LEFT JOIN productreview as pr ON p.ProductId = pr.ProductId";
+                var dr = cmd.ExecuteReader();
+                while (dr.Read())
+                { 
+                    yield return new Product { Name = dr["Name"].ToString(), Comments = dr["Comments"].ToString() };
+                }
+
+            }
+
         }
     }
 }
